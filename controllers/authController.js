@@ -49,7 +49,7 @@ class AuthController {
             await tokenService.saveToken(user.id, tokens.refreshToken);
             res.cookie('refreshToken', tokens.refreshToken, { maxAge: 1000 * 60 * 60, httpOnly: true });
             delete user.dataValues.password;
-
+            
             return res.json({
                 ...tokens,
                 user,
@@ -75,13 +75,12 @@ class AuthController {
         try {
             const { refreshToken } = req.cookies;
             if (!refreshToken) {
-                res.clearCookie('refreshToken');
                 return next(ApiError.unauthorizedError());
             }
             const validToken = tokenService.validateRefreshToken(refreshToken);
             const findedToken = await tokenService.findToken(refreshToken);
+            console.log(!validToken || !findedToken);
             if (!validToken || !findedToken) {
-                res.clearCookie('refreshToken');
                 return next(ApiError.unauthorizedError());
             }
             const user = await User.findOne({ where: { id: validToken.id } });
