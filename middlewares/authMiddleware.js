@@ -1,4 +1,5 @@
 const ApiError = require('../error/ApiError');
+const { User } = require('../models/models');
 const tokenService = require('../services/tokenService');
 
 module.exports = async function (req, res, next) {
@@ -15,7 +16,8 @@ module.exports = async function (req, res, next) {
         if (!validToken || !findedToken) {
             return next(ApiError.unauthorizedError());
         }
-        req.userId = findedToken.dataValues.userId;
+        const user = await User.findOne({ where: { id: findedToken.userId } });
+        req.user = user;
         next();
     } catch (e) {
         return next(ApiError.unauthorizedError());

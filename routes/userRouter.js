@@ -6,6 +6,6 @@ const checkRoleMiddleware = require('../middlewares/checkRoleMiddleware');
 
 router.get('/', userController.getUsers);
 router.get('/:username', userController.getUser);
-router.post('/ban/:id', authMiddleware, checkRoleMiddleware('MODERATOR'), userController.banUser);
+router.post('/ban/:username', authMiddleware, checkRoleMiddleware('MODERATOR'), userController.banUser);
 
 module.exports = router;

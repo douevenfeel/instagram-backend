@@ -4,12 +4,21 @@ const { User, Post } = require('../models/models');
 class UserController {
     async getUsers(req, res, next) {
         try {
-            const { q } = req.query;
-            const users = await User.findAll({
-                where: { username: { [Op.iLike]: `%${q}%` } },
-                order: [['username', 'asc']],
-            });
-            users.map((user) => delete user.dataValues.password);
+            let { q } = req.query;
+            let users;
+            if (q) {
+                users = await User.findAll({
+                    attributes: { exclude: ['password'] },
+                    where: { username: { [Op.iLike]: `%${q}%` }, isBanned: false },
+                    order: [['username', 'asc']],
+                });
+            } else {
+                users = await User.findAll({
+                    attributes: { exclude: ['password'] },
+                    order: [['username', 'asc']],
+                });
+            }
+            // users.map((user) => delete user.dataValues.password);
 
             return res.json(users);
         } catch (error) {
@@ -22,12 +31,14 @@ class UserController {
             const { username } = req.params;
             const user = await User.findOne({
                 where: { username },
-                attributes: ['username'],
+                attributes: { exclude: ['password'] },
                 include: { model: Post },
                 order: [[Post, 'createdAt', 'desc']],
             });
+            let likesCount = 0;
+            user.dataValues.posts.map((post) => (likesCount += post.dataValues.likesCount));
 
-            return res.json(user);
+            return res.json({ user, likesCount });
         } catch (error) {
             console.log(error);
             next(error);
@@ -36,14 +47,18 @@ class UserController {
 
     async banUser(req, res, next) {
         try {
-            const { id } = req.params;
+            const moderator = req.user;
+            const { username } = req.params;
             const user = await User.findOne({
-                where: { id },
+                where: { username },
             });
-            user.isBanned = !user.isBanned;
-            user.save();
+            if (moderator.username !== username) {
+                user.isBanned = !user.isBanned;
+                user.save();
+                return res.json({ message: `user ${user.isBanned ? 'banned' : 'unbanned'}` });
+            }
 
-            return res.json({ message: `user ${user.isBanned ? 'banned' : 'unbanned'}` });
+            return res.json({ message: 'error' });
         } catch (error) {
             next(error);
         }

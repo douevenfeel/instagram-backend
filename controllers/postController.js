@@ -5,14 +5,14 @@ const path = require('path');
 class PostController {
     async createPost(req, res, next) {
         try {
-            const userId = req.userId;
+            const user = req.user;
             let { description } = req.body;
             const { photo } = req.files;
             description = !!description ? description : '';
             let fileName = uuid.v4() + '.png';
             console.log(photo);
             photo.mv(path.resolve(__dirname, '..', 'static', fileName));
-            await Post.create({ description, userId, photo: fileName });
+            await Post.create({ description, userId: user.id, photo: fileName });
 
             return res.json({ message: 'post created' });
         } catch (error) {
@@ -21,14 +21,15 @@ class PostController {
     }
     async getPosts(req, res, next) {
         try {
-            const posts = await Post.findAndCountAll({
-                include: [{ model: Like }, { model: User, attributes: ['username'] }],
-                order: [['createdAt', 'desc']],
+            const { order } = req.query;
+            const posts = await Post.findAll({
+                include: [{ model: Like }, { model: User, attributes: ['id', 'username'] }],
+                order: [order],
             });
 
             return res.json(posts);
         } catch (error) {
-            next(error);
+            console.log(error);
         }
     }
 
@@ -37,10 +38,7 @@ class PostController {
             const { id } = req.params;
             const post = await Post.findOne({
                 where: { id },
-                include: [
-                    { model: Like, attributes: ['userId'] },
-                    { model: User, attributes: ['username'] },
-                ],
+                include: [{ model: Like, attributes: ['userId'] }, { model: User }],
             });
 
             return res.json(post);
@@ -51,15 +49,20 @@ class PostController {
 
     async getEstimatedPosts(req, res, next) {
         try {
-            const userId = req.userId;
-            const user = await User.findOne({ where: { id: userId } });
+            const { id } = req.user;
             const posts = await Like.findAll({
-                where: { userId },
-                include: { model: Post, attributes: ['id', 'photo', 'description'] },
+                where: { userId: id },
+                include: [
+                    {
+                        model: Post,
+                        attributes: ['id', 'photo', 'description'],
+                        include: { model: User, attributes: ['isBanned'] },
+                    },
+                ],
                 order: [['createdAt', 'desc']],
             });
 
-            return res.json({ username: user.dataValues.username, posts });
+            return res.json(posts);
         } catch (error) {
             next(error);
         }
@@ -67,15 +70,20 @@ class PostController {
 
     async estimate(req, res, next) {
         try {
-            const userId = req.userId;
+            const user = req.user;
             const { id } = req.params;
-            const candidate = await Like.findOne({ where: { postId: id, userId } });
+            const candidate = await Like.findOne({ where: { postId: id, userId: user.id } });
+            const post = await Post.findOne({ where: { id } });
             if (candidate) {
                 candidate.destroy();
+                post.likesCount = post.likesCount - 1;
+                post.save();
 
                 return res.json('dislike');
             }
-            await Like.create({ postId: id, userId });
+            await Like.create({ postId: id, userId: user.id });
+            post.likesCount = post.likesCount + 1;
+            post.save();
 
             return res.json('like');
         } catch (error) {
@@ -85,12 +93,11 @@ class PostController {
 
     async updatePost(req, res, next) {
         try {
-            const userId = req.userId;
+            const user = req.user;
             const { id } = req.params;
             let { description } = req.body;
-            console.log(description);
             description = !!description ? description : '';
-            const post = await Post.findOne({ where: { id, userId } });
+            const post = await Post.findOne({ where: { id, userId: user.id } });
             if (post) {
                 post.description = description;
                 post.save();
@@ -104,17 +111,24 @@ class PostController {
 
     async deletePost(req, res, next) {
         try {
-            const userId = req.userId;
+            const user = req.user;
             const { id } = req.params;
-            const candidate = await Post.findOne({ where: { id, userId } });
-            console.log(candidate);
+            let candidate;
+            if (user.role === 'MODERATOR') {
+                candidate = await Post.findOne({ where: { id } });
+                console.log(candidate, 'moder');
+            } else {
+                candidate = await Post.findOne({ where: { id, userId: user.id } });
+                console.log(candidate, 'nemoder');
+            }
             if (candidate) {
                 const likes = await Like.findAll({ where: { postId: id } });
                 likes.forEach((like) => like.destroy());
-                await Post.destroy({ where: { id, userId } });
+                candidate.destroy();
 
                 return res.json({ message: 'post deleted' });
             }
+            console.log(false);
             return res.json({ message: 'post doesnt exist' });
         } catch (error) {
             next(error);

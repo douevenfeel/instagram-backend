@@ -18,6 +18,7 @@ const Post = sequelize.define('post', {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     description: { type: DataTypes.STRING },
     photo: { type: DataTypes.STRING },
+    likesCount: { type: DataTypes.INTEGER, defaultValue: 0 },
 });
 
 const Like = sequelize.define('like', {
