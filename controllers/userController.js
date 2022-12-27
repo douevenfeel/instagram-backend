@@ -15,10 +15,9 @@ class UserController {
             } else {
                 users = await User.findAll({
                     attributes: { exclude: ['password'] },
-                    order: [['username', 'asc']],
+                    order: [['id', 'desc']],
                 });
             }
-            // users.map((user) => delete user.dataValues.password);
 
             return res.json(users);
         } catch (error) {

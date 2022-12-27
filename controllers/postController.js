@@ -10,7 +10,6 @@ class PostController {
             const { photo } = req.files;
             description = !!description ? description : '';
             let fileName = uuid.v4() + '.png';
-            console.log(photo);
             photo.mv(path.resolve(__dirname, '..', 'static', fileName));
             await Post.create({ description, userId: user.id, photo: fileName });
 
@@ -21,9 +20,10 @@ class PostController {
     }
     async getPosts(req, res, next) {
         try {
-            const { order } = req.query;
+            let { order } = req.query;
+            order = !!order ? order : ['createdAt', 'desc'];
             const posts = await Post.findAll({
-                include: [{ model: Like }, { model: User, attributes: ['id', 'username'] }],
+                include: [{ model: Like }, { model: User, attributes: ['id', 'username', 'isBanned'] }],
                 order: [order],
             });
 

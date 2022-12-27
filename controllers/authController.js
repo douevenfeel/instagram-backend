@@ -18,7 +18,7 @@ class AuthController {
                 username: user.username,
             });
             await tokenService.saveToken(user.id, tokens.refreshToken);
-            res.cookie('refreshToken', tokens.refreshToken, { maxAge: 1000 * 60 * 60 * 24, httpOnly: true });
+            res.cookie('refreshToken', tokens.refreshToken, { maxAge: 1000 * 60 * 60 * 24 * 30, httpOnly: true });
             delete user.dataValues.password;
 
             return res.json({
@@ -47,9 +47,9 @@ class AuthController {
                 role: user.role,
             });
             await tokenService.saveToken(user.id, tokens.refreshToken);
-            res.cookie('refreshToken', tokens.refreshToken, { maxAge: 1000 * 60 * 60, httpOnly: true });
+            res.cookie('refreshToken', tokens.refreshToken, { maxAge: 1000 * 60 * 60 * 24 * 30, httpOnly: true });
             delete user.dataValues.password;
-            
+
             return res.json({
                 ...tokens,
                 user,
